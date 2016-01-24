@@ -26,7 +26,7 @@ namespace Photos
     /// </summary>
     public sealed partial class PhotoList : Page
     {
-        public ObservableCollection<SimpleImageInfo> fileList; 
+        public ObservableCollection<SimpleImageInfo> _imageList; 
         public PhotoList()
         {
             this.InitializeComponent();
@@ -35,16 +35,18 @@ namespace Photos
 
         protected override void OnNavigatedTo(NavigationEventArgs e)
         {
-            fileList = (ObservableCollection<SimpleImageInfo>)e.Parameter;
-            FileListItemsControl.ItemsSource = fileList;
+            _imageList = (ObservableCollection<SimpleImageInfo>)e.Parameter;
+            FileListItemsControl.ItemsSource = _imageList;
             base.OnNavigatedTo(e);
         }
 
+        //przycisk powrotu
         private void AppBarButton_Click(object sender, RoutedEventArgs e)
         {
             this.Frame.Navigate(typeof(MainPage));
         }
 
+        //wybór obrazka
         private void FileListItemsControl_ItemClick(object sender, ItemClickEventArgs e)
         {
             SimpleImageInfo selectedItem = (SimpleImageInfo)e.ClickedItem;

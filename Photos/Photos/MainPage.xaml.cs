@@ -26,27 +26,24 @@ using Windows.UI.Xaml.Media;
 using Windows.UI.Xaml.Media.Imaging;
 using Windows.UI.Xaml.Navigation;
 
-// The Blank Page item template is documented at http://go.microsoft.com/fwlink/?LinkId=402352&clcid=0x409
 
 namespace Photos
 {
-    /// <summary>
-    /// An empty page that can be used on its own or navigated to within a Frame.
-    /// </summary>
+    
     public partial class MainPage : Page, INotifyPropertyChanged
     {
-        public ObservableCollection<SimpleImageInfo> fileList;
         private string _info;
         private BitmapImage _photo;
         private int _counter = 0;
         private bool _loaded = false;
+        private ObservableCollection<SimpleImageInfo> _imageList;
 
         public MainPage()
         {
             this.InitializeComponent();
             this.NavigationCacheMode = NavigationCacheMode.Enabled;
-            fileList = new ObservableCollection<SimpleImageInfo>();
             DataContext = this;
+            _imageList = new ObservableCollection<SimpleImageInfo>();
             ChangePhoto();     
         }
 
@@ -87,54 +84,44 @@ namespace Photos
             }
         }
 
+        //funkcja do zmiany wyświetlanego zdjęcia
         public async void ChangePhoto()
         {
-            if (fileList.Count == 0)
+            if (_imageList.Count == 0)
                 _loaded = await LoadImagesAsync();
-            if (_counter >= fileList.Count)
+            if (_counter >= _imageList.Count)
                 _counter = 0;
-            SimpleImageInfo image = fileList[_counter];
+            SimpleImageInfo image = _imageList[_counter];
             Photo = await GetImage(image.Source);
             Info = image.Info;
         }
 
+        //ładowanie zdjęć z biblioteki do listy
         public async Task<bool> LoadImagesAsync()
         {
             QueryOptions queryOptions = new QueryOptions(CommonFileQuery.OrderByDate, new[] { ".jpg", ".jpeg", ".jpe",
                 ".jpg", ".gif", ".tiff", ".tif", ".png", ".bmp", ".wdp", ".jxr", ".hdp"});
             queryOptions.FolderDepth = FolderDepth.Deep;
             var query = KnownFolders.PicturesLibrary.CreateFileQueryWithOptions(queryOptions);
-            IReadOnlyList<StorageFile> imageList = await query.GetFilesAsync();
-            //foreach (var storageFile in imageList)
-            //{
-            //    ImageProperties props = await storageFile.Properties.GetImagePropertiesAsync();
-            //    _info = storageFile.Name + "\n" + props.DateTaken + "\n" + props.Latitude + "; " + props.Longitude + "\n" + props.Height + "x" + props.Width;
-            //    fileList.Add(new SimpleImageInfo
-            //    {
-            //        FileName = storageFile.Name,
-            //        Info = _info,
-            //        Source = storageFile,
-            //        Thumbnail = await storageFile.GetThumbnailAsync(ThumbnailMode.PicturesView),
-            //        Id = fileList.Count
-            //    });
-            //}
-            for (int i = 0; i <= 30; i++)
+            IReadOnlyList<StorageFile> fileList = await query.GetFilesAsync();
+            foreach (var storageFile in fileList)
             {
-                ImageProperties props = await imageList[i].Properties.GetImagePropertiesAsync();
-                _info = imageList[i].Name + "\n" + props.DateTaken + "\n" + props.Latitude + "; " + props.Longitude + "\n" + props.Height + "x" + props.Width;
-                fileList.Add(new SimpleImageInfo
+                ImageProperties props = await storageFile.Properties.GetImagePropertiesAsync();
+                _info = storageFile.Name + "\n" + props.DateTaken + "\n" + props.Latitude + "; " + props.Longitude + "\n" + props.Height + "x" + props.Width;
+                _imageList.Add(new SimpleImageInfo
                 {
-                    FileName = imageList[i].Name,
+                    FileName = storageFile.Name,
                     Info = _info,
-                    Source = imageList[i],
-                    Thumbnail = await imageList[i].GetThumbnailAsync(ThumbnailMode.PicturesView),
-                    Id = fileList.Count
+                    Source = storageFile,
+                    Thumbnail = await storageFile.GetThumbnailAsync(ThumbnailMode.PicturesView),
+                    Id = _imageList.Count
                 });
             }
             progressRing.IsActive = false;
             return true;
         }
 
+        //funkcja zwracająca bitmapę
         public static async Task<BitmapImage> GetImage(StorageFile file)
         {
             BitmapImage bitmapImage;
@@ -147,6 +134,7 @@ namespace Photos
             return bitmapImage;
         }
 
+        //obsługa aparatu
         private async Task<bool> CapturePhoto()
         {
             var allVideoDevices = await DeviceInformation.FindAllAsync(DeviceClass.VideoCapture);
@@ -169,13 +157,13 @@ namespace Photos
                 ImageProperties props = await photo.Properties.GetImagePropertiesAsync();
                 string name = "Image " + DateTime.Now.ToString("yyyyMMdd Hmmss") + ".jpg";
                 _info = name + "\n" + props.DateTaken + "\n" + props.Latitude + "; " + props.Longitude + "\n" + props.Height + "x" + props.Width;
-                fileList.Add(new SimpleImageInfo
+                _imageList.Add(new SimpleImageInfo
                 {
                     FileName = name,
                     Info = _info,
                     Source = photo,
                     Thumbnail = await photo.GetThumbnailAsync(ThumbnailMode.PicturesView),
-                    Id = fileList.Count
+                    Id = _imageList.Count
                 });
                 await photo.CopyAsync(KnownFolders.CameraRoll, name);
                 return true;
@@ -184,19 +172,35 @@ namespace Photos
                 return false;
         }
 
-        public event PropertyChangedEventHandler PropertyChanged = null;
-        virtual protected void OnPropertyChanged(string propName)
+        //obsługa funkcji "share"
+        private void ShareImageHandler(DataTransferManager sender,
+           DataRequestedEventArgs e)
         {
-            if (PropertyChanged != null)
-                PropertyChanged(this, new PropertyChangedEventArgs(propName));
+            DataRequest request = e.Request;
+            request.Data.Properties.Title = "Image sharing";
+            request.Data.Properties.Description = "Sharing selected image...";
+            DataRequestDeferral deferral = request.GetDeferral();
+            try
+            {
+                request.Data.Properties.Thumbnail =
+                    RandomAccessStreamReference.CreateFromFile(_imageList[_counter].Source);
+                StorageFile imageFile = _imageList[_counter].Source;
+                request.Data.SetBitmap(RandomAccessStreamReference.CreateFromFile(imageFile));
+            }
+            finally
+            {
+                deferral.Complete();
+            }
         }
 
+        //naciśnięcie na obrazek
         private void image_PointerReleased(object sender, PointerRoutedEventArgs e)
         {
             _counter++;
             ChangePhoto();
         }
 
+        //przycisk aparatu
         private async void AppBarButton_Click(object sender, RoutedEventArgs e)
         {
             if(_loaded)
@@ -205,7 +209,7 @@ namespace Photos
                 {
                     if (await CapturePhoto() == true)
                     {
-                        _counter = fileList.Count - 1;
+                        _counter = _imageList.Count - 1;
                         ChangePhoto();
                     }
                 }
@@ -217,17 +221,19 @@ namespace Photos
             }       
         }
 
+        //przycisk listy zdjęć
         private void AppBarButton_Click_1(object sender, RoutedEventArgs e)
         {
             if(_loaded)
             {
-                this.Frame.Navigate(typeof(PhotoList), fileList);
+                this.Frame.Navigate(typeof(PhotoList), _imageList);
             }            
         }
 
+        //przycisk share
         private void AppBarButton_Click_2(object sender, RoutedEventArgs e)
         {
-            if(_loaded && fileList.Count > 0)
+            if(_loaded && _imageList.Count > 0)
             {
                 DataTransferManager dataTransferManager = DataTransferManager.GetForCurrentView();
                 dataTransferManager.DataRequested += new TypedEventHandler<DataTransferManager,
@@ -235,32 +241,13 @@ namespace Photos
                 DataTransferManager.ShowShareUI();
             }
         }
-
-        private void ShareImageHandler(DataTransferManager sender,
-            DataRequestedEventArgs e)
+        
+        public event PropertyChangedEventHandler PropertyChanged = null;
+        virtual protected void OnPropertyChanged(string propName)
         {
-            DataRequest request = e.Request;
-            request.Data.Properties.Title = "Share Image Example";
-            request.Data.Properties.Description = "Demonstrates how to share an image.";
-
-            // Because we are making async calls in the DataRequested event handler,
-            //  we need to get the deferral first.
-            DataRequestDeferral deferral = request.GetDeferral();
-
-            // Make sure we always call Complete on the deferral.
-            try
-            {
-                request.Data.Properties.Thumbnail =
-                    RandomAccessStreamReference.CreateFromFile(fileList[_counter].Source);
-                StorageFile imageFile = fileList[_counter].Source;
-                request.Data.SetBitmap(RandomAccessStreamReference.CreateFromFile(imageFile));
-            }
-            finally
-            {
-                deferral.Complete();
-            }
+            if (PropertyChanged != null)
+                PropertyChanged(this, new PropertyChangedEventArgs(propName));
         }
-
     }
 }
 
