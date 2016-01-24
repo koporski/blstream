@@ -6,8 +6,40 @@
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     mc:Ignorable="d">
+    <Page.TopAppBar>
+        <CommandBar>
+            <CommandBar.Background>
+                <LinearGradientBrush EndPoint="0.5,1" StartPoint="0.5,0">
+                    <GradientStop Color="Black" Offset="1"/>
+                    <GradientStop Color="#FF09133C" Offset="0"/>
+                </LinearGradientBrush>
+            </CommandBar.Background>
+            <CommandBar.Content>
+                <Grid/>
+            </CommandBar.Content>
+            <AppBarButton Icon="Camera" Label="Camera" Click="AppBarButton_Click"/>
+            <AppBarButton Icon="BrowsePhotos" Label="Photos" Click="AppBarButton_Click_1"/>
+            <AppBarButton Icon="Send" Label="Share" Click="AppBarButton_Click_2"/>
+        </CommandBar>
+    </Page.TopAppBar>
 
     <Grid Background="{ThemeResource AppBarBackgroundThemeBrush}">
-        <Image x:Name="image"/>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="20*"/>
+            <RowDefinition Height="40*"/>
+            <RowDefinition Height="20*"/>
+            <RowDefinition Height="20*"/>
+        </Grid.RowDefinitions>
+        <Image x:Name="image" Source="{Binding Photo}" PointerReleased="image_PointerReleased" Grid.Row="0" Grid.RowSpan="3"/>
+        <ScrollViewer Grid.Row="3">
+            <ScrollViewer.Background>
+                <LinearGradientBrush EndPoint="0.5,1" StartPoint="0.5,0">
+                    <GradientStop Color="Black" Offset="0"/>
+                    <GradientStop Color="#FF09133C" Offset="1"/>
+                </LinearGradientBrush>
+            </ScrollViewer.Background>
+            <TextBlock x:Name="textBlock" TextWrapping="Wrap" Text="{Binding Info}" TextAlignment="Center"/>
+        </ScrollViewer>
+        <ProgressRing x:Name="progressRing" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" IsActive="True" Grid.Row="1" />
     </Grid>
 </Page>
